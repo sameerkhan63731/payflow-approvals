@@ -1,0 +1,104 @@
+<a class="back" routerLink="/payments">← All payments</a>
+
+<div class="alert" *ngIf="error$ | async as error" role="alert">
+  <span>{{ error }}</span>
+  <button type="button" (click)="dismissError()" aria-label="Dismiss">✕</button>
+</div>
+
+<ng-container *ngIf="payment$ | async as p; else loadingTpl">
+  <section class="card summary">
+    <div class="title-row">
+      <div>
+        <p class="mono muted">{{ p.reference }} · {{ p.type }}</p>
+        <h1>{{ p.beneficiaryName }}</h1>
+      </div>
+      <span class="badge {{ p.status }}">{{ labels[p.status] }}</span>
+    </div>
+
+    <p class="amount">{{ p.amount | currency: p.currency }}</p>
+
+    <dl class="grid">
+      <div><dt>From account</dt><dd class="mono">{{ p.debitAccount }}</dd></div>
+      <div><dt>To account</dt><dd class="mono">{{ p.beneficiaryAccount }}</dd></div>
+      <div><dt>Memo</dt><dd>{{ p.memo || '—' }}</dd></div>
+      <div><dt>Initiated by</dt><dd>{{ p.createdBy }} · {{ p.createdAt | date: 'MMM d, y, h:mm a' }}</dd></div>
+    </dl>
+  </section>
+
+  <div class="columns">
+    <section class="card block">
+      <h2>Approval trail</h2>
+      <p class="muted">
+        {{ p.approvalsReceived }} of {{ p.requiredApprovals }} approvals
+        <ng-container *ngIf="p.status === 'PENDING_APPROVAL'">· {{ remaining(p) }} still needed</ng-container>
+      </p>
+
+      <ol class="trail">
+        <li class="event">
+          <span class="marker"></span>
+          <div>
+            <strong>{{ p.createdBy }}</strong> initiated the payment
+            <div class="muted small">{{ p.createdAt | date: 'MMM d, h:mm a' }}</div>
+          </div>
+        </li>
+        <li class="event" *ngFor="let a of p.approvals" [class.rejected]="a.decision === 'REJECTED'">
+          <span class="marker"></span>
+          <div>
+            <strong>{{ a.approver }}</strong> {{ a.decision === 'APPROVED' ? 'approved' : 'rejected' }}
+            <div class="note" *ngIf="a.note">“{{ a.note }}”</div>
+            <div class="muted small">{{ a.decidedAt | date: 'MMM d, h:mm a' }}</div>
+          </div>
+        </li>
+        <li class="event done" *ngIf="p.status === 'RELEASED'">
+          <span class="marker"></span>
+          <div><strong>Released</strong> for processing</div>
+        </li>
+      </ol>
+    </section>
+
+    <section class="card block actions">
+      <h2>Your action</h2>
+
+      <ng-container *ngIf="p.canDecide; else noDecision">
+        <div class="field">
+          <label for="note">Note <span class="muted">(required to reject)</span></label>
+          <textarea id="note" rows="3" maxlength="280" [(ngModel)]="note" name="note"
+                    placeholder="e.g. Matches PO 4471"></textarea>
+        </div>
+        <div class="buttons">
+          <button type="button" class="btn approve" [disabled]="saving$ | async" (click)="decide('approve')">
+            Approve
+          </button>
+          <button type="button" class="btn reject" [disabled]="(saving$ | async) || !note.trim()"
+                  (click)="decide('reject')">
+            Reject
+          </button>
+        </div>
+      </ng-container>
+
+      <ng-template #noDecision>
+        <ng-container *ngIf="canRelease(p); else info">
+          <p>This payment has all its approvals. Release it for processing?</p>
+          <button type="button" class="btn primary" [disabled]="saving$ | async" (click)="decide('release')">
+            Release payment
+          </button>
+        </ng-container>
+        <ng-template #info>
+          <p class="muted" *ngIf="p.status === 'PENDING_APPROVAL' && isMine(p)">
+            You initiated this payment, so someone else has to approve it.
+          </p>
+          <p class="muted" *ngIf="p.status === 'PENDING_APPROVAL' && !isMine(p)">
+            Nothing for you to do here. You may have already decided, or you are not an approver.
+          </p>
+          <p class="muted" *ngIf="p.status !== 'PENDING_APPROVAL'">
+            This payment is {{ labels[p.status].toLowerCase() }}. No action needed.
+          </p>
+        </ng-template>
+      </ng-template>
+    </section>
+  </div>
+</ng-container>
+
+<ng-template #loadingTpl>
+  <p class="muted">Loading payment…</p>
+</ng-template>

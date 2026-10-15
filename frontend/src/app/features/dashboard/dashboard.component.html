@@ -1,0 +1,93 @@
+<div class="head">
+  <div>
+    <h1>Payments</h1>
+    <p class="muted">ACH and wire payments and where each one sits in approval.</p>
+  </div>
+  <a *ngIf="auth.hasRole('INITIATOR')" class="btn primary" routerLink="/payments/new">+ New payment</a>
+</div>
+
+<div class="alert" *ngIf="error$ | async as error" role="alert">
+  <span>{{ error }}</span>
+  <button type="button" (click)="dismissError()" aria-label="Dismiss">✕</button>
+</div>
+
+<ng-container *ngIf="awaitingMe$ | async as awaiting">
+  <div class="callout" *ngIf="awaiting.length > 0">
+    <strong>{{ awaiting.length }}</strong>
+    {{ awaiting.length === 1 ? 'payment is' : 'payments are' }} waiting for your approval.
+  </div>
+</ng-container>
+
+<section class="tiles" *ngIf="summary$ | async as summary">
+  <button
+    type="button"
+    class="tile card"
+    *ngFor="let s of statuses"
+    [class.active]="(filter$ | async) === s"
+    (click)="show(s)"
+  >
+    <span class="badge {{ s }}">{{ labels[s] }}</span>
+    <span class="count">{{ summary.counts[s] }}</span>
+  </button>
+  <button type="button" class="tile card" [class.active]="(filter$ | async) === null" (click)="show(null)">
+    <span class="badge DRAFT">All</span>
+    <span class="count">{{ summary.total }}</span>
+  </button>
+</section>
+
+<ng-container *ngIf="pendingTotals$ | async as totals">
+  <p class="muted totals" *ngIf="totals.length > 0">
+    Awaiting approval in this view:
+    <span *ngFor="let t of totals; let last = last">
+      <strong>{{ t.amount | currency: t.currency }}</strong><span *ngIf="!last">, </span>
+    </span>
+  </p>
+</ng-container>
+
+<section class="card table-wrap">
+  <table *ngIf="items$ | async as items">
+    <thead>
+      <tr>
+        <th>Reference</th>
+        <th>Beneficiary</th>
+        <th>Type</th>
+        <th class="num">Amount</th>
+        <th>Approvals</th>
+        <th>Status</th>
+        <th>Created</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr
+        *ngFor="let p of items; trackBy: trackById"
+        (click)="open(p)"
+        (keydown.enter)="open(p)"
+        tabindex="0"
+        [class.mine]="p.canDecide"
+      >
+        <td class="mono">{{ p.reference }}</td>
+        <td>
+          <div>{{ p.beneficiaryName }}</div>
+          <div class="muted small">{{ p.memo }}</div>
+        </td>
+        <td>{{ p.type }}</td>
+        <td class="num">{{ p.amount | currency: p.currency }}</td>
+        <td>
+          <div class="progress" [attr.aria-label]="p.approvalsReceived + ' of ' + p.requiredApprovals + ' approvals'">
+            <span
+              *ngFor="let i of steps(p.requiredApprovals)"
+              class="dot"
+              [class.filled]="i < p.approvalsReceived"
+            ></span>
+          </div>
+        </td>
+        <td><span class="badge {{ p.status }}">{{ labels[p.status] }}</span></td>
+        <td class="muted small">{{ p.createdAt | date: 'MMM d, h:mm a' }}<br />by {{ p.createdBy }}</td>
+      </tr>
+      <tr *ngIf="items.length === 0 && !(loading$ | async)">
+        <td colspan="7" class="empty">No payments in this view.</td>
+      </tr>
+    </tbody>
+  </table>
+  <p class="loading muted" *ngIf="loading$ | async">Loading…</p>
+</section>

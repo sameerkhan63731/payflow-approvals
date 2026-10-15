@@ -1,0 +1,72 @@
+<a class="back" routerLink="/payments">← All payments</a>
+
+<section class="card panel">
+  <h1>New payment</h1>
+  <p class="muted">Payments go through approval before they can be released. You cannot approve your own.</p>
+
+  <div class="alert" *ngIf="error$ | async as error" role="alert">
+    <span>{{ error }}</span>
+    <button type="button" (click)="dismissError()" aria-label="Dismiss">✕</button>
+  </div>
+
+  <form [formGroup]="form" (ngSubmit)="submit(true)" novalidate>
+    <fieldset class="type">
+      <legend>Payment type</legend>
+      <label [class.on]="form.controls.type.value === 'ACH'">
+        <input type="radio" formControlName="type" value="ACH" />
+        <span><strong>ACH</strong><small class="muted">Next-day, lower cost</small></span>
+      </label>
+      <label [class.on]="form.controls.type.value === 'WIRE'">
+        <input type="radio" formControlName="type" value="WIRE" />
+        <span><strong>Wire</strong><small class="muted">Same-day, harder to recall</small></span>
+      </label>
+    </fieldset>
+
+    <div class="row">
+      <div class="field grow">
+        <label for="amount">Amount</label>
+        <input id="amount" type="number" min="0.01" step="0.01" formControlName="amount" inputmode="decimal" />
+        <span class="invalid" *ngIf="showError('amount')">Enter an amount greater than zero.</span>
+      </div>
+      <div class="field currency">
+        <label for="currency">Currency</label>
+        <input id="currency" formControlName="currency" maxlength="3" />
+        <span class="invalid" *ngIf="showError('currency')">Use a 3-letter code.</span>
+      </div>
+    </div>
+
+    <div class="tier" *ngIf="approvalsNeeded as n">
+      This {{ form.controls.type.value }} will need <strong>{{ n }}</strong>
+      {{ n === 1 ? 'approval' : 'approvals' }} from different approvers.
+    </div>
+
+    <div class="field">
+      <label for="debitAccount">Debit from account</label>
+      <input id="debitAccount" formControlName="debitAccount" inputmode="numeric" autocomplete="off" />
+      <span class="invalid" *ngIf="showError('debitAccount')">6 to 17 digits.</span>
+    </div>
+
+    <div class="row">
+      <div class="field grow">
+        <label for="beneficiaryName">Beneficiary name</label>
+        <input id="beneficiaryName" formControlName="beneficiaryName" />
+        <span class="invalid" *ngIf="showError('beneficiaryName')">Required.</span>
+      </div>
+      <div class="field grow">
+        <label for="beneficiaryAccount">Beneficiary account</label>
+        <input id="beneficiaryAccount" formControlName="beneficiaryAccount" inputmode="numeric" autocomplete="off" />
+        <span class="invalid" *ngIf="showError('beneficiaryAccount')">6 to 17 digits.</span>
+      </div>
+    </div>
+
+    <div class="field">
+      <label for="memo">Memo</label>
+      <input id="memo" formControlName="memo" maxlength="140" placeholder="e.g. Invoice INV-20931" />
+    </div>
+
+    <div class="buttons">
+      <button type="submit" class="btn primary" [disabled]="saving$ | async">Submit for approval</button>
+      <button type="button" class="btn" [disabled]="saving$ | async" (click)="submit(false)">Save as draft</button>
+    </div>
+  </form>
+</section>
